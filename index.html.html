@@ -1,0 +1,467 @@
+
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<link rel="manifest" href="manifest.json">
+<script>
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('service-worker.js');
+  }
+</script>
+
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Break & Lunch Timer</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            color: white;
+            margin: 0;
+            padding: 20px;
+            overflow: hidden;
+        }
+
+        .container {
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(10px);
+            border-radius: 30px;
+            padding: 40px 20px;
+            text-align: center;
+            box-shadow: 0 8px 32px rgba(31, 38, 135, 0.37);
+            border: 1px solid rgba(255, 255, 255, 0.18);
+            width: 95vw;
+            height: 95vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            position: relative;
+        }
+
+        h1 {
+            font-size: 3em;
+            margin-bottom: 20px;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+            position: absolute;
+            top: 40px;
+            width: 100%;
+        }
+
+        .timer-display {
+            font-size: 12em;
+            font-weight: bold;
+            text-shadow: 4px 4px 8px rgba(0, 0, 0, 0.5);
+            font-family: 'Courier New', monospace;
+            letter-spacing: 8px;
+            line-height: 0.9;
+            margin: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .timer-type {
+            font-size: 2.5em;
+            margin-bottom: 40px;
+            opacity: 0.9;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+        }
+
+        .buttons {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+            flex-wrap: wrap;
+            position: absolute;
+            bottom: 120px;
+            width: 100%;
+            left: 0;
+            padding: 0 40px;
+        }
+
+        button {
+            padding: 12px 20px;
+            font-size: 1em;
+            border: none;
+            border-radius: 50px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            min-width: 100px;
+        }
+
+        button:hover {
+            background: rgba(255, 255, 255, 0.3);
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+        }
+
+        button:active {
+            transform: translateY(0);
+        }
+
+        .preset-buttons {
+            display: flex;
+            gap: 20px;
+            justify-content: center;
+            position: absolute;
+            bottom: 40px;
+            width: 100%;
+            left: 0;
+            padding: 0 40px;
+        }
+
+        .preset-btn {
+            background: rgba(76, 175, 80, 0.3);
+            border-color: rgba(76, 175, 80, 0.5);
+            padding: 15px 30px;
+            font-size: 1.2em;
+        }
+
+        .preset-btn:hover {
+            background: rgba(76, 175, 80, 0.5);
+        }
+
+        .start-btn {
+            background: rgba(33, 150, 243, 0.3);
+            border-color: rgba(33, 150, 243, 0.5);
+        }
+
+        .start-btn:hover {
+            background: rgba(33, 150, 243, 0.5);
+        }
+
+        .pause-btn {
+            background: rgba(255, 152, 0, 0.3);
+            border-color: rgba(255, 152, 0, 0.5);
+        }
+
+        .pause-btn:hover {
+            background: rgba(255, 152, 0, 0.5);
+        }
+
+        .reset-btn {
+            background: rgba(244, 67, 54, 0.3);
+            border-color: rgba(244, 67, 54, 0.5);
+        }
+
+        .reset-btn:hover {
+            background: rgba(244, 67, 54, 0.5);
+        }
+
+        .finished {
+            animation: pulse 1.5s infinite;
+            color: #ff6b6b;
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(1); text-shadow: 4px 4px 8px rgba(0, 0, 0, 0.5); }
+            50% { transform: scale(1.02); text-shadow: 8px 8px 16px rgba(255, 107, 107, 0.8); }
+            100% { transform: scale(1); text-shadow: 4px 4px 8px rgba(0, 0, 0, 0.5); }
+        }
+
+        .notification {
+            position: fixed;
+            top: 30px;
+            right: 30px;
+            background: rgba(76, 175, 80, 0.9);
+            color: white;
+            padding: 20px 30px;
+            border-radius: 15px;
+            font-size: 1.3em;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+            transform: translateX(100%);
+            transition: transform 0.3s ease;
+            z-index: 1000;
+        }
+
+        .notification.show {
+            transform: translateX(0);
+        }
+
+        .progress-bar {
+            width: 80%;
+            height: 12px;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 6px;
+            position: absolute;
+            bottom: 200px;
+            left: 10%;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #4CAF50, #2196F3);
+            border-radius: 6px;
+            transition: width 1s ease;
+        }
+
+        /* Responsive design for smaller screens */
+        @media (max-width: 768px) {
+            .timer-display {
+                font-size: 8em;
+                letter-spacing: 4px;
+            }
+            
+            h1 {
+                font-size: 2em;
+            }
+            
+            .timer-type {
+                font-size: 2em;
+            }
+        }
+
+        @media (max-height: 600px) {
+            .timer-display {
+                font-size: 6em;
+            }
+            
+            h1 {
+                font-size: 1.8em;
+                top: 20px;
+            }
+            
+            .timer-type {
+                font-size: 1.5em;
+                margin-bottom: 20px;
+            }
+            
+            .buttons {
+                bottom: 80px;
+            }
+            
+            .preset-buttons {
+                bottom: 20px;
+            }
+            
+            .progress-bar {
+                bottom: 140px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>I'll Be Right Back!</h1>
+        
+        <div class="timer-type" id="timerType">Select a timer</div>
+        <div class="timer-display" id="timerDisplay">00:00</div>
+        
+        <div class="progress-bar">
+            <div class="progress-fill" id="progressFill" style="width: 0%"></div>
+        </div>
+        
+        <div class="preset-buttons">
+            <button class="preset-btn" onclick="setTimer(15, 'Short Break')">15 Min Break</button>
+            <button class="preset-btn" onclick="setTimer(60, 'Lunch Time')">1 Hour Lunch</button>
+        </div>
+        
+        <div class="buttons">
+            <button class="start-btn" id="startBtn" onclick="startTimer()">Start</button>
+            <button class="pause-btn" id="pauseBtn" onclick="pauseTimer()">Pause</button>
+            <button class="reset-btn" onclick="resetTimer()">Reset</button>
+        </div>
+    </div>
+
+    <div class="notification" id="notification"></div>
+
+    <script>
+        let timer = null;
+        let timeLeft = 0;
+        let totalTime = 0;
+        let isRunning = false;
+        let currentTimerType = '';
+
+        const timerDisplay = document.getElementById('timerDisplay');
+        const timerType = document.getElementById('timerType');
+        const startBtn = document.getElementById('startBtn');
+        const pauseBtn = document.getElementById('pauseBtn');
+        const progressFill = document.getElementById('progressFill');
+        const notification = document.getElementById('notification');
+
+        function setTimer(minutes, type) {
+            resetTimer();
+            timeLeft = minutes * 60;
+            totalTime = timeLeft;
+            currentTimerType = type;
+            timerType.textContent = type;
+            updateDisplay();
+            updateProgress();
+        }
+
+        function startTimer() {
+            if (timeLeft <= 0) {
+                showNotification('Please select a timer first!', 'warning');
+                return;
+            }
+
+            if (!isRunning) {
+                isRunning = true;
+                startBtn.textContent = 'Running...';
+                startBtn.disabled = true;
+                
+                timer = setInterval(() => {
+                    timeLeft--;
+                    updateDisplay();
+                    updateProgress();
+                    
+                    if (timeLeft <= 0) {
+                        finishTimer();
+                    }
+                }, 1000);
+            }
+        }
+
+        function pauseTimer() {
+            if (isRunning) {
+                clearInterval(timer);
+                isRunning = false;
+                startBtn.textContent = 'Resume';
+                startBtn.disabled = false;
+                showNotification('Timer paused', 'info');
+            }
+        }
+
+        function resetTimer() {
+            clearInterval(timer);
+            isRunning = false;
+            timeLeft = totalTime;
+            startBtn.textContent = 'Start';
+            startBtn.disabled = false;
+            timerDisplay.classList.remove('finished');
+            updateDisplay();
+            updateProgress();
+        }
+
+        function finishTimer() {
+            clearInterval(timer);
+            isRunning = false;
+            timeLeft = 0;
+            timerDisplay.classList.add('finished');
+            startBtn.textContent = 'Start';
+            startBtn.disabled = false;
+            updateDisplay();
+            updateProgress();
+            
+            // Show notification and play sound
+            showNotification(`${currentTimerType} is finished!`, 'success');
+            playNotificationSound();
+            
+            // Flash the screen
+            flashScreen();
+        }
+
+        function updateDisplay() {
+            const minutes = Math.floor(timeLeft / 60);
+            const seconds = timeLeft % 60;
+            timerDisplay.textContent = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+            
+            // Update page title
+            if (timeLeft > 0 && isRunning) {
+                document.title = `${timerDisplay.textContent} - ${currentTimerType}`;
+            } else {
+                document.title = 'Break & Lunch Timer';
+            }
+        }
+
+        function updateProgress() {
+            if (totalTime > 0) {
+                const progress = ((totalTime - timeLeft) / totalTime) * 100;
+                progressFill.style.width = `${progress}%`;
+            } else {
+                progressFill.style.width = '0%';
+            }
+        }
+
+        function showNotification(message, type = 'info') {
+            notification.textContent = message;
+            notification.className = `notification show ${type}`;
+            
+            setTimeout(() => {
+                notification.classList.remove('show');
+            }, 3000);
+        }
+
+        function playNotificationSound() {
+            // Create audio context for beep sound
+            const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            
+            // Create beep sound
+            for (let i = 0; i < 3; i++) {
+                setTimeout(() => {
+                    const oscillator = audioContext.createOscillator();
+                    const gainNode = audioContext.createGain();
+                    
+                    oscillator.connect(gainNode);
+                    gainNode.connect(audioContext.destination);
+                    
+                    oscillator.frequency.value = 800;
+                    oscillator.type = 'sine';
+                    
+                    gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+                    gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.5);
+                    
+                    oscillator.start(audioContext.currentTime);
+                    oscillator.stop(audioContext.currentTime + 0.5);
+                }, i * 600);
+            }
+        }
+
+        function flashScreen() {
+            document.body.style.background = '#ff6b6b';
+            setTimeout(() => {
+                document.body.style.background = 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)';
+            }, 500);
+        }
+
+        // Keyboard shortcuts
+        document.addEventListener('keydown', (e) => {
+            switch(e.key) {
+                case ' ': // Space bar
+                    e.preventDefault();
+                    if (isRunning) {
+                        pauseTimer();
+                    } else {
+                        startTimer();
+                    }
+                    break;
+                case 'r':
+                case 'R':
+                    resetTimer();
+                    break;
+                case '1':
+                    setTimer(15, 'Short Break');
+                    break;
+                case '2':
+                    setTimer(60, 'Lunch Time');
+                    break;
+            }
+        });
+
+        // Initialize
+        updateDisplay();
+        
+        // Show keyboard shortcuts notification on load
+        setTimeout(() => {
+            showNotification('Shortcuts: Space=Start/Pause, R=Reset, 1=Break, 2=Lunch', 'info');
+        }, 1000);
+    </script>
+</body>
+</html>
